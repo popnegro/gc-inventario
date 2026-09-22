@@ -1,45 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { InventoryItem, getDisponibilidad, Disponibilidad } from '../types';
-import { fixedLocations as staticFixed, mobileRoutes as staticMobile } from '../data/inventory';
 import { apiClient } from '../utils/apiClient';
 
-function applyOverrides(rawItems: InventoryItem[]): InventoryItem[] {
-  try {
-    const saved = localStorage.getItem('gc_admin_status_overrides');
-    const overrides: Record<string, any> = saved ? JSON.parse(saved) : {};
-    
-    const seen = new Set<string>();
-    const uniqueItems: InventoryItem[] = [];
-    
-    for (const it of rawItems) {
-      if (!it.canonical_id || seen.has(it.canonical_id)) {
-        continue;
-      }
-      seen.add(it.canonical_id);
-      
-      if (overrides[it.canonical_id]) {
-        uniqueItems.push({ ...it, disponibilidad: overrides[it.canonical_id] });
-      } else {
-        uniqueItems.push(it);
-      }
-    }
-    
-    return uniqueItems;
-  } catch {
-    const seen = new Set<string>();
-    return rawItems.filter((it) => {
-      if (!it.canonical_id || seen.has(it.canonical_id)) return false;
-      seen.add(it.canonical_id);
-      return true;
-    });
-  }
+function normalizeItems(rawItems: InventoryItem[]): InventoryItem[] {
+  const seen = new Set<string>();
+  return rawItems.filter((item) => {
+    if (!item.canonical_id || seen.has(item.canonical_id)) return false;
+    seen.add(item.canonical_id);
+    return true;
+  });
 }
 
 export function useInventory() {
-  const [items, setItems] = useState<InventoryItem[]>(() => {
-    return applyOverrides([...staticFixed, ...staticMobile]);
-  });
-  const [loading, setLoading] = useState<boolean>(false);
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchInventory = useCallback(async () => {
@@ -47,26 +21,19 @@ export function useInventory() {
     setError(null);
     try {
       const json = await apiClient.getInventory();
-      if (json.status === 'success' && Array.isArray(json.data) && json.data.length > 0) {
-        // Keep localStorage overrides as dynamic overlay if any exist, but DB is source of truth
-        const merged = applyOverrides(json.data);
-        const publicItems = merged.filter(
-          (item: InventoryItem) => getDisponibilidad(item) !== 'inactivo',
-        );
-        setItems(publicItems);
-        return;
+      if (json.status !== 'success' || !Array.isArray(json.data)) {
+        throw new Error('La API devolvió un inventario inválido.');
       }
-      // Fallback
-      const fallback = applyOverrides([...staticFixed, ...staticMobile]).filter(
+
+      const publicItems = normalizeItems(json.data).filter(
         (item: InventoryItem) => getDisponibilidad(item) !== 'inactivo',
       );
-      setItems(fallback);
+      setItems(publicItems);
     } catch (err: any) {
-      console.warn('DB Fetch failed, fallback to static catalog:', err?.message || err);
-      const fallback = applyOverrides([...staticFixed, ...staticMobile]).filter(
-        (item: InventoryItem) => getDisponibilidad(item) !== 'inactivo',
-      );
-      setItems(fallback);
+      const message = err?.message || 'No se pudo cargar el inventario.';
+      console.error('Inventory fetch failed:', message);
+      setItems([]);
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -75,32 +42,18 @@ export function useInventory() {
   const updateStatus = useCallback(async (canonicalId: string, newStatus: Disponibilidad) => {
     try {
       const res = await apiClient.updateSupportStatus(canonicalId, newStatus);
-      
-      if (res.status === 'success') {
-        // Update local overrides as backup fallback
-        try {
-          const saved = localStorage.getItem('gc_admin_status_overrides');
-          const current = saved ? JSON.parse(saved) : {};
-          current[canonicalId] = newStatus;
-          localStorage.setItem('gc_admin_status_overrides', JSON.stringify(current));
-        } catch (e) {
-          console.warn('Storage override write skipped:', e);
-        }
+      if (res.status !== 'success') return false;
 
-        // Optimistically update React State
-        setItems((prev) =>
-          prev.map((it) => {
-            if (it.canonical_id === canonicalId) {
-              return { ...it, disponibilidad: newStatus };
-            }
-            return it;
-          })
-        );
-        return true;
-      }
-      return false;
+      setItems((prev) =>
+        prev.map((item) =>
+          item.canonical_id === canonicalId
+            ? { ...item, disponibilidad: newStatus }
+            : item,
+        ),
+      );
+      return true;
     } catch (err) {
-      console.error('Failed to save status update to Neon DB via service layer:', err);
+      console.error('Failed to save status update to Neon:', err);
       return false;
     }
   }, []);
@@ -108,30 +61,19 @@ export function useInventory() {
   const updateDetails = useCallback(async (canonicalId: string, updatedFields: any) => {
     try {
       const res = await apiClient.updateSupportDetails(canonicalId, updatedFields);
-      if (res.status === 'success') {
-        setItems((prev) =>
-          prev.map((it) => {
-            if (it.canonical_id === canonicalId) {
-              return { ...it, ...updatedFields };
-            }
-            return it;
-          })
-        );
-        return true;
-      }
-      return false;
-    } catch (err) {
-      console.error('Failed to update support details:', err);
-      // Fallback update on local state in static mode
+      if (res.status !== 'success') return false;
+
       setItems((prev) =>
-        prev.map((it) => {
-          if (it.canonical_id === canonicalId) {
-            return { ...it, ...updatedFields };
-          }
-          return it;
-        })
+        prev.map((item) =>
+          item.canonical_id === canonicalId
+            ? { ...item, ...updatedFields }
+            : item,
+        ),
       );
       return true;
+    } catch (err) {
+      console.error('Failed to update support details in Neon:', err);
+      return false;
     }
   }, []);
 
