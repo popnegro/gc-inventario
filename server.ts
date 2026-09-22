@@ -66,8 +66,87 @@ async function startServer() {
   app.get('/api/supports', async (req, res) => {
     try {
       if (pool) {
-        const queryRes = await pool.query('SELECT * FROM supports ORDER BY canonical_id ASC');
+        const queryRes = await pool.query(`
+          SELECT
+            s.*,
+            st.summary AS technical_summary,
+            st.measures AS technical_measures,
+            st.resolution AS technical_resolution,
+            st.turn_on_schedule AS technical_turn_on_schedule,
+            st.daily_frequency AS technical_daily_frequency,
+            st.requirements AS technical_requirements,
+            st.spot_duration_seconds AS technical_spot_duration_seconds,
+            st.minimum_daily_outings AS technical_minimum_daily_outings,
+            st.max_advertisers AS technical_max_advertisers,
+            st.route_duration_hours AS technical_route_duration_hours,
+            st.operation_days AS technical_operation_days,
+            st.video_mode AS technical_video_mode,
+            st.metadata AS technical_metadata,
+            sp.exhibition_price, sp.installation_price, sp.printing_price,
+            sp.monthly_price, sp.exclusive_price, sp.currency,
+            sp.tax_included, sp.price_public,
+            sr.route_name, sr.route_mode, sr.schedule AS route_schedule,
+            sr.duration AS route_duration, sr.hours AS route_hours,
+            sr.weekdays AS route_weekdays,
+            sr.max_advertisers AS route_max_advertisers,
+            sr.spot_duration_seconds AS route_spot_duration_seconds,
+            sr.minimum_daily_outings AS route_minimum_daily_outings,
+            sr.route_path AS route_path_rich,
+            sr.waypoints AS waypoints_rich,
+            COALESCE(
+              json_agg(
+                json_build_object(
+                  'id', sm.id,
+                  'media_type', sm.media_type,
+                  'url', sm.url,
+                  'title', sm.title,
+                  'alt', sm.alt,
+                  'mime_type', sm.mime_type,
+                  'sort_order', sm.sort_order,
+                  'metadata', sm.metadata
+                ) ORDER BY sm.sort_order
+              ) FILTER (WHERE sm.id IS NOT NULL),
+              '[]'::json
+            ) AS media
+          FROM supports s
+          LEFT JOIN support_technical st ON st.support_canonical_id = s.canonical_id
+          LEFT JOIN support_pricing sp ON sp.support_canonical_id = s.canonical_id
+          LEFT JOIN support_routes sr ON sr.support_canonical_id = s.canonical_id
+          LEFT JOIN support_media sm ON sm.support_canonical_id = s.canonical_id AND sm.active = TRUE
+          GROUP BY s.id, st.support_canonical_id, sp.support_canonical_id, sr.support_canonical_id
+          ORDER BY s.canonical_id ASC
+        `);
         const data = queryRes.rows.map(row => {
+          const technical = row.technical_summary || row.technical_measures || row.technical_resolution
+            ? {
+                summary: row.technical_summary,
+                measures: row.technical_measures,
+                resolution: row.technical_resolution,
+                turn_on_schedule: row.technical_turn_on_schedule,
+                daily_frequency: row.technical_daily_frequency,
+                requirements: row.technical_requirements,
+                spot_duration_seconds: row.technical_spot_duration_seconds,
+                minimum_daily_outings: row.technical_minimum_daily_outings,
+                max_advertisers: row.technical_max_advertisers,
+                route_duration_hours: row.technical_route_duration_hours,
+                operation_days: row.technical_operation_days,
+                video_mode: row.technical_video_mode,
+                metadata: safeParseJson<any>(row.technical_metadata, {}),
+              }
+            : safeParseJson<any>(row.technical, null);
+          const media = safeParseJson<any[]>(row.media, []);
+          const pricing = row.currency ? {
+            exhibition_price: row.exhibition_price,
+            installation_price: row.installation_price,
+            printing_price: row.printing_price,
+            monthly_price: row.monthly_price,
+            exclusive_price: row.exclusive_price,
+            currency: row.currency,
+            tax_included: row.tax_included,
+            price_public: row.price_public,
+          } : null;
+          const routePath = row.route_path_rich || row.route_path;
+          const waypoints = row.waypoints_rich || row.waypoints;
           return {
             canonical_id: row.canonical_id,
             name: row.name,
@@ -83,9 +162,14 @@ async function startServer() {
             mapa_url: row.mapa_url,
             imageUrls: safeParseJson<string[]>(row.image_urls, []),
             disponibilidad: row.disponibilidad,
-            technical: safeParseJson<any>(row.technical, null),
-            ...(row.tipo_soporte === 'led_movil' && row.waypoints ? { waypoints: safeParseJson<any[]>(row.waypoints, []) } : {}),
-            ...(row.tipo_soporte === 'led_movil' && row.route_path ? { routePath: safeParseJson<any[]>(row.route_path, []) } : {})
+            availableFrom: row.available_from,
+            schedule: row.schedule || row.route_schedule,
+            duration: row.duration || row.route_duration,
+            pricing,
+            technical,
+            media,
+            ...(row.tipo_soporte === 'led_movil' && routePath ? { routePath: safeParseJson<any[]>(routePath, []) } : {}),
+            ...(row.tipo_soporte === 'led_movil' && waypoints ? { waypoints: safeParseJson<any[]>(waypoints, []) } : {}),
           };
         });
 
