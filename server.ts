@@ -22,93 +22,14 @@ if (process.env.DATABASE_URL) {
  * Automatically creates and seeds the Neon database on server startup
  */
 async function initDatabase() {
-  if (!pool) return;
+  if (!pool) {
+    throw new Error('DATABASE_URL is required. Inventory API does not run in static mode.');
+  }
   try {
-    // 1. Create supports table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS supports (
-        canonical_id VARCHAR(50) PRIMARY KEY,
-        name TEXT NOT NULL,
-        ciudad VARCHAR(50) NOT NULL,
-        tipo_soporte VARCHAR(50) NOT NULL,
-        family VARCHAR(50),
-        active BOOLEAN DEFAULT TRUE,
-        lat DOUBLE PRECISION,
-        lng DOUBLE PRECISION,
-        address TEXT,
-        description TEXT,
-        characteristics TEXT,
-        mapa_url TEXT,
-        image_urls TEXT, -- JSON string array
-        disponibilidad VARCHAR(50) DEFAULT 'disponible',
-        technical TEXT, -- JSON technical object
-        waypoints TEXT, -- JSON waypoints array
-        route_path TEXT -- JSON coordinates array
-      );
-    `);
-
-    // 1.5 Create mediakits table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS mediakits (
-        id VARCHAR(50) PRIMARY KEY,
-        name TEXT NOT NULL,
-        client_name TEXT,
-        soportes_ids TEXT, -- comma-separated list of supports
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        notes TEXT
-      );
-    `);
-
-    // 2. Check if table is empty
-    const checkRes = await pool.query('SELECT COUNT(*) FROM supports');
-    const count = parseInt(checkRes.rows[0].count, 10);
-    
-    if (count === 0) {
-      console.log('Neon database table "supports" is empty. Initializing seed data...');
-      const inventoryModule = await import('./src/data/inventory');
-      const allSupports = [
-        ...(inventoryModule.fixedLocations || []),
-        ...(inventoryModule.mobileRoutes || []),
-      ];
-
-      for (const item of allSupports) {
-        const image_urls = JSON.stringify(item.imageUrls || []);
-        const technical = JSON.stringify(item.technical || null);
-        const waypoints = 'waypoints' in item ? JSON.stringify(item.waypoints || []) : null;
-        const route_path = 'routePath' in item ? JSON.stringify(item.routePath || []) : null;
-
-        await pool.query(`
-          INSERT INTO supports (
-            canonical_id, name, ciudad, tipo_soporte, family, active, 
-            lat, lng, address, description, characteristics, mapa_url, 
-            image_urls, disponibilidad, technical, waypoints, route_path
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-        `, [
-          item.canonical_id,
-          item.name,
-          item.ciudad,
-          item.tipo_soporte,
-          item.family || null,
-          item.active !== false,
-          'lat' in item ? item.lat : null,
-          'lng' in item ? item.lng : null,
-          'address' in item ? item.address : '',
-          item.description,
-          item.characteristics,
-          'mapa_url' in item ? item.mapa_url : '',
-          image_urls,
-          item.disponibilidad || 'disponible',
-          technical,
-          waypoints,
-          route_path
-        ]);
-      }
-      console.log(`Successfully seeded ${allSupports.length} items into Neon PostgreSQL database.`);
-    } else {
-      console.log(`Neon database loaded. ${count} active records found in "supports" table.`);
-    }
+    await pool.query('SELECT 1');
+    console.log('Neon PostgreSQL connection verified.');
   } catch (err) {
-    console.error('Failed to initialize and seed Neon database:', err);
+    console.error('Failed to connect to Neon PostgreSQL:', err);
   }
 }
 
@@ -131,9 +52,9 @@ async function startServer() {
   const app = express();
   app.use(express.json());
 
-  // Run database initialization in background
+  // Verify database connectivity without creating or seeding production tables.
   initDatabase().catch(err => {
-    console.error('Async DB initialization error:', err);
+    console.error('Neon initialization error:', err);
   });
 
   // --- Backend API Routes ---
@@ -145,8 +66,87 @@ async function startServer() {
   app.get('/api/supports', async (req, res) => {
     try {
       if (pool) {
-        const queryRes = await pool.query('SELECT * FROM supports ORDER BY canonical_id ASC');
+        const queryRes = await pool.query(`
+          SELECT
+            s.*,
+            st.summary AS technical_summary,
+            st.measures AS technical_measures,
+            st.resolution AS technical_resolution,
+            st.turn_on_schedule AS technical_turn_on_schedule,
+            st.daily_frequency AS technical_daily_frequency,
+            st.requirements AS technical_requirements,
+            st.spot_duration_seconds AS technical_spot_duration_seconds,
+            st.minimum_daily_outings AS technical_minimum_daily_outings,
+            st.max_advertisers AS technical_max_advertisers,
+            st.route_duration_hours AS technical_route_duration_hours,
+            st.operation_days AS technical_operation_days,
+            st.video_mode AS technical_video_mode,
+            st.metadata AS technical_metadata,
+            sp.exhibition_price, sp.installation_price, sp.printing_price,
+            sp.monthly_price, sp.exclusive_price, sp.currency,
+            sp.tax_included, sp.price_public,
+            sr.route_name, sr.route_mode, sr.schedule AS route_schedule,
+            sr.duration AS route_duration, sr.hours AS route_hours,
+            sr.weekdays AS route_weekdays,
+            sr.max_advertisers AS route_max_advertisers,
+            sr.spot_duration_seconds AS route_spot_duration_seconds,
+            sr.minimum_daily_outings AS route_minimum_daily_outings,
+            sr.route_path AS route_path_rich,
+            sr.waypoints AS waypoints_rich,
+            COALESCE(
+              json_agg(
+                json_build_object(
+                  'id', sm.id,
+                  'media_type', sm.media_type,
+                  'url', sm.url,
+                  'title', sm.title,
+                  'alt', sm.alt,
+                  'mime_type', sm.mime_type,
+                  'sort_order', sm.sort_order,
+                  'metadata', sm.metadata
+                ) ORDER BY sm.sort_order
+              ) FILTER (WHERE sm.id IS NOT NULL),
+              '[]'::json
+            ) AS media
+          FROM supports s
+          LEFT JOIN support_technical st ON st.support_canonical_id = s.canonical_id
+          LEFT JOIN support_pricing sp ON sp.support_canonical_id = s.canonical_id
+          LEFT JOIN support_routes sr ON sr.support_canonical_id = s.canonical_id
+          LEFT JOIN support_media sm ON sm.support_canonical_id = s.canonical_id AND sm.active = TRUE
+          GROUP BY s.id, st.support_canonical_id, sp.support_canonical_id, sr.support_canonical_id
+          ORDER BY s.canonical_id ASC
+        `);
         const data = queryRes.rows.map(row => {
+          const technical = row.technical_summary || row.technical_measures || row.technical_resolution
+            ? {
+                summary: row.technical_summary,
+                measures: row.technical_measures,
+                resolution: row.technical_resolution,
+                turn_on_schedule: row.technical_turn_on_schedule,
+                daily_frequency: row.technical_daily_frequency,
+                requirements: row.technical_requirements,
+                spot_duration_seconds: row.technical_spot_duration_seconds,
+                minimum_daily_outings: row.technical_minimum_daily_outings,
+                max_advertisers: row.technical_max_advertisers,
+                route_duration_hours: row.technical_route_duration_hours,
+                operation_days: row.technical_operation_days,
+                video_mode: row.technical_video_mode,
+                metadata: safeParseJson<any>(row.technical_metadata, {}),
+              }
+            : safeParseJson<any>(row.technical, null);
+          const media = safeParseJson<any[]>(row.media, []);
+          const pricing = row.currency ? {
+            exhibition_price: row.exhibition_price,
+            installation_price: row.installation_price,
+            printing_price: row.printing_price,
+            monthly_price: row.monthly_price,
+            exclusive_price: row.exclusive_price,
+            currency: row.currency,
+            tax_included: row.tax_included,
+            price_public: row.price_public,
+          } : null;
+          const routePath = row.route_path_rich || row.route_path;
+          const waypoints = row.waypoints_rich || row.waypoints;
           return {
             canonical_id: row.canonical_id,
             name: row.name,
@@ -162,9 +162,14 @@ async function startServer() {
             mapa_url: row.mapa_url,
             imageUrls: safeParseJson<string[]>(row.image_urls, []),
             disponibilidad: row.disponibilidad,
-            technical: safeParseJson<any>(row.technical, null),
-            ...(row.tipo_soporte === 'led_movil' && row.waypoints ? { waypoints: safeParseJson<any[]>(row.waypoints, []) } : {}),
-            ...(row.tipo_soporte === 'led_movil' && row.route_path ? { routePath: safeParseJson<any[]>(row.route_path, []) } : {})
+            availableFrom: row.available_from,
+            schedule: row.schedule || row.route_schedule,
+            duration: row.duration || row.route_duration,
+            pricing,
+            technical,
+            media,
+            ...(row.tipo_soporte === 'led_movil' && routePath ? { routePath: safeParseJson<any[]>(routePath, []) } : {}),
+            ...(row.tipo_soporte === 'led_movil' && waypoints ? { waypoints: safeParseJson<any[]>(waypoints, []) } : {}),
           };
         });
 
@@ -174,17 +179,7 @@ async function startServer() {
           data: data,
         });
       } else {
-        // Static fallback if database isn't connected
-        const inventoryModule = await import('./src/data/inventory');
-        const allSupports = [
-          ...(inventoryModule.fixedLocations || []),
-          ...(inventoryModule.mobileRoutes || []),
-        ];
-        return res.json({
-          status: 'success',
-          count: allSupports.length,
-          data: allSupports,
-        });
+        return res.status(503).json({ status: 'error', message: 'DATABASE_URL no está configurado. Neon es la fuente de verdad del inventario.' });
       }
     } catch (err: any) {
       console.error('Error serving inventory:', err);
@@ -206,24 +201,7 @@ async function startServer() {
           data: queryRes.rows
         });
       } else {
-        const inventoryModule = await import('./src/data/inventory');
-        const allSupports = [
-          ...(inventoryModule.fixedLocations || []),
-          ...(inventoryModule.mobileRoutes || []),
-        ];
-        const mapped = allSupports.map(item => ({
-          id: item.canonical_id,
-          nombre: item.name,
-          direccion: 'address' in item ? item.address : '',
-          latitud: 'lat' in item ? item.lat : null,
-          longitud: 'lng' in item ? item.lng : null,
-          estado_ocupacion: item.disponibilidad || 'disponible'
-        }));
-        return res.json({
-          status: 'success',
-          count: mapped.length,
-          data: mapped
-        });
+        return res.status(503).json({ status: 'error', message: 'DATABASE_URL no está configurado.' });
       }
     } catch (err: any) {
       console.error('Error in /api/inventario:', err);
@@ -250,10 +228,7 @@ async function startServer() {
           message: `Status updated to "${disponibilidad}" in Neon database.`,
         });
       } else {
-        return res.json({
-          status: 'success',
-          message: 'Status updated successfully (Running in database-less static mode).',
-        });
+        return res.status(503).json({ status: 'error', message: 'DATABASE_URL no está configurado.' });
       }
     } catch (err: any) {
       console.error('Error updating status override:', err);
@@ -281,10 +256,7 @@ async function startServer() {
           message: `Soporte ${id} actualizado correctamente en la base de datos de Neon.`
         });
       } else {
-        return res.json({
-          status: 'success',
-          message: `Soporte ${id} actualizado correctamente en memoria (Modo estático).`
-        });
+        return res.status(503).json({ status: 'error', message: 'DATABASE_URL no está configurado.' });
       }
     } catch (err: any) {
       console.error('Error updating support details:', err);
@@ -295,66 +267,54 @@ async function startServer() {
   /**
    * Endpoint to fetch all registered Media Kits
    */
-  app.get('/api/mediakits', async (req, res) => {
+  app.get('/api/mediakits', async (_req, res) => {
     try {
-      if (pool) {
-        const queryRes = await pool.query('SELECT * FROM mediakits ORDER BY created_at DESC');
-        return res.json({
-          status: 'success',
-          count: queryRes.rows.length,
-          data: queryRes.rows
-        });
-      } else {
-        // Mock fallback list
-        return res.json({
-          status: 'success',
-          count: 2,
-          data: [
-            { id: 'mk-1', name: 'Propuesta Primavera 2026 - Mendoza Centro', client_name: 'Coca Cola AR', soportes_ids: 'mza-led-1,mza-led-2', notes: 'Campañas de vía pública digital.', created_at: new Date(Date.now() - 3600000 * 24).toISOString() },
-            { id: 'mk-2', name: 'Media Kit LED Móvil - Lanzamiento Mendoza', client_name: 'Banco Galicia', soportes_ids: 'mza-movil-1', notes: 'Recorridos de alta frecuencia de 6 horas.', created_at: new Date(Date.now() - 3600000 * 5).toISOString() }
-          ]
-        });
-      }
+      if (!pool) return res.status(503).json({ status: 'error', message: 'DATABASE_URL no está configurado.' });
+      const queryRes = await pool.query(`
+        SELECT id, nombre AS name, cliente_nombre AS client_name,
+               screen_ids AS soportes_ids, comentarios AS notes, created_at
+        FROM mediakits ORDER BY created_at DESC
+      `);
+      const data = queryRes.rows.map(row => ({
+        ...row,
+        soportes_ids: safeParseJson<string[]>(row.soportes_ids, []),
+        notes: safeParseJson<any[]>(row.notes, []),
+      }));
+      return res.json({ status: 'success', count: data.length, data });
     } catch (err: any) {
       console.error('Error fetching mediakits:', err);
-      res.status(500).json({ status: 'error', message: err?.message || 'Error loading mediakits' });
+      return res.status(500).json({ status: 'error', message: err?.message || 'Error loading mediakits' });
     }
   });
 
-  /**
-   * Endpoint to register a new Media Kit proposal
-   */
   app.post('/api/mediakits', async (req, res) => {
     try {
       const { id, name, client_name, soportes_ids, notes } = req.body;
+      if (!name) return res.status(400).json({ status: 'error', message: 'name parameter is required' });
+      if (!pool) return res.status(503).json({ status: 'error', message: 'DATABASE_URL no está configurado.' });
 
-      if (!name) {
-        return res.status(400).json({ status: 'error', message: 'name parameter is required' });
-      }
+      const generatedId = id || 'mk-' + Math.random().toString(36).slice(2, 11);
+      const screenIds = Array.isArray(soportes_ids) ? JSON.stringify(soportes_ids) : (typeof soportes_ids === 'string' ? soportes_ids : '[]');
+      const comments = Array.isArray(notes) ? JSON.stringify(notes) : (typeof notes === 'string' ? notes : '[]');
 
-      const generatedId = id || 'mk-' + Math.random().toString(36).substr(2, 9);
+      await pool.query(`
+        INSERT INTO mediakits (
+          id, nombre, cliente_id, cliente_nombre, ciudad, screen_ids,
+          version, estado, fecha, comentarios
+        ) VALUES ($1, $2, $3, $4, $5, $6, 1, 'Borrador', CURRENT_DATE::text, $7)
+      `, [
+        generatedId, name, `legacy-${generatedId}`, client_name || '',
+        req.body.ciudad || 'Mendoza', screenIds, comments
+      ]);
 
-      if (pool) {
-        await pool.query(
-          `INSERT INTO mediakits (id, name, client_name, soportes_ids, notes, created_at)
-           VALUES ($1, $2, $3, $4, $5, NOW())`,
-          [generatedId, name, client_name || '', soportes_ids || '', notes || '']
-        );
-        return res.json({
-          status: 'success',
-          message: 'Media Kit registrado correctamente en Neon.',
-          data: { id: generatedId, name, client_name, soportes_ids, notes }
-        });
-      } else {
-        return res.json({
-          status: 'success',
-          message: 'Media Kit registrado correctamente en memoria (Modo estático).',
-          data: { id: generatedId, name, client_name, soportes_ids, notes, created_at: new Date().toISOString() }
-        });
-      }
+      return res.status(201).json({
+        status: 'success',
+        message: 'Media Kit registrado correctamente en Neon.',
+        data: { id: generatedId, name, client_name, soportes_ids: safeParseJson<string[]>(screenIds, []), notes: safeParseJson<any[]>(comments, []) }
+      });
     } catch (err: any) {
       console.error('Error saving mediakit:', err);
-      res.status(500).json({ status: 'error', message: err?.message || 'Error saving media kit' });
+      return res.status(500).json({ status: 'error', message: err?.message || 'Error saving media kit' });
     }
   });
 
