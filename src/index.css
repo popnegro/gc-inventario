@@ -1,0 +1,275 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scaleUp {
+  animation: scaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Clean scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+/* Theme color-scheme directives to enable native dark UI and browser components */
+:root[data-theme="dark"],
+:root.dark,
+html.dark {
+  color-scheme: dark;
+}
+
+:root[data-theme="light"],
+:root:not(.dark),
+html:not(.dark) {
+  color-scheme: light;
+}
+
+/* Synchronize dark/light mode toggle across all DOM elements without desynchronized transitions */
+.no-theme-transitions,
+.no-theme-transitions *,
+.no-theme-transitions *::before,
+.no-theme-transitions *::after {
+  transition: none !important;
+}
+
+/* Base styling for Google Maps Place Autocomplete */
+gmp-place-autocomplete,
+place-autocomplete-element {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  display: block;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  border-radius: 0.75rem;
+}
+
+/* When application is in Light Mode */
+:root[data-theme="light"] gmp-place-autocomplete,
+:root[data-theme="light"] place-autocomplete-element,
+html:not(.dark) gmp-place-autocomplete,
+html:not(.dark) place-autocomplete-element {
+  color-scheme: light;
+  background-color: #ffffff;
+  color: #0f172a;
+  border: 1.5px solid #d1d5db;
+}
+
+:root[data-theme="light"] gmp-place-autocomplete::part(input),
+:root[data-theme="light"] place-autocomplete-element::part(input),
+html:not(.dark) gmp-place-autocomplete::part(input),
+html:not(.dark) place-autocomplete-element::part(input) {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+:root[data-theme="light"] gmp-place-autocomplete::part(dropdown),
+:root[data-theme="light"] place-autocomplete-element::part(dropdown),
+html:not(.dark) gmp-place-autocomplete::part(dropdown),
+html:not(.dark) place-autocomplete-element::part(dropdown) {
+  background-color: #ffffff;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+}
+
+:root[data-theme="light"] gmp-place-autocomplete::part(item),
+:root[data-theme="light"] place-autocomplete-element::part(item),
+html:not(.dark) gmp-place-autocomplete::part(item),
+html:not(.dark) place-autocomplete-element::part(item) {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+/* When application is in Dark Mode - Matching exact dark slate panel background */
+:root[data-theme="dark"] gmp-place-autocomplete,
+:root[data-theme="dark"] place-autocomplete-element,
+.dark gmp-place-autocomplete,
+.dark place-autocomplete-element,
+html.dark gmp-place-autocomplete,
+html.dark place-autocomplete-element {
+  color-scheme: dark;
+  background-color: #0f172a;
+  color: #f8fafc;
+  border: 1.5px solid #334155;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme="dark"] gmp-place-autocomplete::part(input),
+:root[data-theme="dark"] place-autocomplete-element::part(input),
+.dark gmp-place-autocomplete::part(input),
+.dark place-autocomplete-element::part(input),
+html.dark gmp-place-autocomplete::part(input),
+html.dark place-autocomplete-element::part(input) {
+  background-color: #0f172a;
+  color: #f8fafc;
+}
+
+:root[data-theme="dark"] gmp-place-autocomplete::part(dropdown),
+:root[data-theme="dark"] place-autocomplete-element::part(dropdown),
+.dark gmp-place-autocomplete::part(dropdown),
+.dark place-autocomplete-element::part(dropdown),
+html.dark gmp-place-autocomplete::part(dropdown),
+html.dark place-autocomplete-element::part(dropdown) {
+  background-color: #0f172a;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme="dark"] gmp-place-autocomplete::part(item),
+:root[data-theme="dark"] place-autocomplete-element::part(item),
+.dark gmp-place-autocomplete::part(item),
+.dark place-autocomplete-element::part(item),
+html.dark gmp-place-autocomplete::part(item),
+html.dark place-autocomplete-element::part(item) {
+  background-color: #0f172a;
+  color: #f8fafc;
+}
+
+:root[data-theme="dark"] gmp-place-autocomplete::part(clear-button),
+:root[data-theme="dark"] place-autocomplete-element::part(clear-button),
+.dark gmp-place-autocomplete::part(clear-button),
+.dark place-autocomplete-element::part(clear-button),
+html.dark gmp-place-autocomplete::part(clear-button),
+html.dark place-autocomplete-element::part(clear-button) {
+  color: #94a3b8;
+}
+
+/* ==========================================================================
+   Google Maps InfoWindow & Places UI Kit Compact Widget Refinements
+   Fixes the oversized close button that pushes content down.
+   ========================================================================== */
+
+/* Outer InfoWindow Container */
+.gm-style .gm-style-iw-c {
+  padding: 8px 10px !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Inner InfoWindow Content Wrapper */
+.gm-style .gm-style-iw-d {
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  max-height: none !important;
+}
+
+/* Fix oversized InfoWindow close button so it stays small in the top right and does NOT push content down */
+.gm-style .gm-ui-hover-effect {
+  position: absolute !important;
+  top: 4px !important;
+  right: 4px !important;
+  width: 22px !important;
+  height: 22px !important;
+  padding: 2px !important;
+  margin: 0 !important;
+  border-radius: 9999px !important;
+  background: rgba(0, 0, 0, 0.06) !important;
+  z-index: 1000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  opacity: 0.65 !important;
+  transition: opacity 0.15s ease, background-color 0.15s ease !important;
+}
+
+.gm-style .gm-ui-hover-effect:hover {
+  opacity: 1 !important;
+  background: rgba(0, 0, 0, 0.12) !important;
+}
+
+:root[data-theme="dark"] .gm-style .gm-ui-hover-effect,
+html.dark .gm-style .gm-ui-hover-effect {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #f1f5f9 !important;
+}
+
+:root[data-theme="dark"] .gm-style .gm-ui-hover-effect:hover,
+html.dark .gm-style .gm-ui-hover-effect:hover {
+  background: rgba(255, 255, 255, 0.25) !important;
+}
+
+.gm-style .gm-ui-hover-effect > span {
+  width: 12px !important;
+  height: 12px !important;
+  margin: 0 !important;
+}
+
+/* Places UI Kit Compact Widget Styling */
+.places-compact-wrapper {
+  display: block;
+  box-sizing: border-box;
+}
+
+gmp-place-details-compact {
+  display: block !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding-right: 20px !important;
+}
+
+/* Enforce 400px width on laptop/desktop screens so thumbnail photos always render */
+@media (min-width: 768px) {
+  .places-compact-wrapper,
+  gmp-place-details-compact {
+    width: 400px !important;
+    min-width: 400px !important;
+    max-width: 400px !important;
+  }
+
+  .gm-style .gm-style-iw-c {
+    min-width: 410px !important;
+    max-width: 460px !important;
+  }
+
+  .gm-style .gm-style-iw-d {
+    min-width: 400px !important;
+  }
+}
+
+/* Mobile responsive sizing */
+@media (max-width: 767px) {
+  .places-compact-wrapper,
+  gmp-place-details-compact {
+    width: calc(100vw - 56px) !important;
+    max-width: 400px !important;
+    min-width: 280px !important;
+  }
+}
+
+/* End of styles */

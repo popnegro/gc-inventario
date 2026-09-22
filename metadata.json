@@ -1,0 +1,10 @@
+{
+  "name": "Grupo Comunicarte – Inventario OOH \u0026 Media Kit Planner",
+  "description": "Plataforma interactiva de inventario de publicidad exterior (OOH) de Grupo Comunicarte en Mendoza y Buenos Aires con vista dual inspirada en Find Near Me, geocercanía, trazado de rutas LED móvil y generación de Media Kit.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

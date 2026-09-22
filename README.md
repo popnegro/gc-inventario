@@ -1,11 +1,45 @@
-<div align="center">
+# Aura Store Locator
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+A responsive Store Locator built with React, TypeScript, Tailwind CSS, Express, and Google Maps Platform APIs.
 
-  <h1>Built with AI Studio</h2>
+---
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## Features
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+- **Proximity Search**: Real-time geodesic distance calculations ranking stores by closest proximity to user GPS or searched address.
+- **Place Autocomplete**: Address search powered by Google Maps Place Autocomplete with quick-select city chips.
+- **Interactive Map**: Google Maps with Advanced Markers, custom styling, info windows, and 1-click driving directions.
+- **Store Filters**: Filter by real-time operating hours ("Open Now") and amenities (EV Charging, Curbside Pickup, etc.).
+- **Store Details**: Weekly hours breakdown, phone dialing, photo previews, and customer ratings.
+- **Dark / Light Mode**: Seamless theme switching with responsive desktop & mobile layouts.
 
-</div>
+---
+
+## Google Maps API Key
+
+Configure your key in AI Studio Secrets or `.env`:
+
+```env
+VITE_GOOGLE_MAPS_API_KEY="AIzaSyYourApiKeyHere"
+```
+
+---
+
+## Customizing Store Locations
+
+Edit `src/data/stores.ts` to add or update your branch locations with coordinates, addresses, operating hours, and amenities.
+
+---
+
+## Development
+
+```bash
+# Start development server
+npm run dev
+
+# Type check
+npm run lint
+
+# Build for production
+npm run build
+```

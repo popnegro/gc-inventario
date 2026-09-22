@@ -1,0 +1,101 @@
+[
+  {
+    "canonical_id": "GC-MZA-LED-01",
+    "name": "Peatonal Sarmiento & Av. San Martín",
+    "ciudad": "mendoza",
+    "tipo_soporte": "led",
+    "address": "Av. San Martín 1140 esq. Peatonal Sarmiento, Ciudad de Mendoza",
+    "lat": -32.8903,
+    "lng": -68.8415,
+    "disponibilidad": "disponible",
+    "isFeatured": true,
+    "technical": {
+      "measures": "10 x 4 m (40 m²)",
+      "resolution": "P8 Outdoor High-Brightness",
+      "monthly_impacts": 1250000,
+      "format": "Pantalla LED Frontal",
+      "spot_duration_seconds": 10,
+      "daily_frequency": "960 salidas diarias"
+    },
+    "imageUrls": [
+      "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1200&q=80"
+    ]
+  },
+  {
+    "canonical_id": "GC-MZA-LED-08",
+    "name": "Acceso Este & Rondeau – Monumental",
+    "ciudad": "mendoza",
+    "tipo_soporte": "led",
+    "address": "Acceso Este Km 4.5 e intersección Rondeau, Guaymallén",
+    "lat": -32.8985,
+    "lng": -68.8052,
+    "disponibilidad": "reservado",
+    "isFeatured": true,
+    "technical": {
+      "measures": "14 x 6 m (84 m²)",
+      "resolution": "P10 High Dynamic Range",
+      "monthly_impacts": 2400000,
+      "format": "Mega Pantalla LED Autopista",
+      "spot_duration_seconds": 12,
+      "daily_frequency": "1200 salidas diarias"
+    },
+    "imageUrls": [
+      "https://images.unsplash.com/photo-1508873696983-2df5293cb32b?auto=format&fit=crop&w=1200&q=80"
+    ]
+  },
+  {
+    "canonical_id": "GC-MZA-TRAD-02",
+    "name": "Top Site Panamericana frente a Palmares Open Mall",
+    "ciudad": "mendoza",
+    "tipo_soporte": "tradicional",
+    "address": "Ruta Panamericana frente a Palmares, Godoy Cruz",
+    "lat": -32.9467,
+    "lng": -68.8682,
+    "disponibilidad": "disponible",
+    "isFeatured": false,
+    "technical": {
+      "measures": "12 x 7 m (84 m²)",
+      "resolution": "Lona Frontlight Impresión HD",
+      "monthly_impacts": 1850000,
+      "format": "Monocolumna Iluminada Doble Faz",
+      "caras": 2
+    },
+    "imageUrls": [
+      "https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=1200&q=80"
+    ]
+  },
+  {
+    "canonical_id": "GC-MZA-MOV-01",
+    "name": "Circuito Troncal LED Móvil Gran Mendoza",
+    "ciudad": "mendoza",
+    "tipo_soporte": "led_movil",
+    "address": "Recorrido Dinámico: Capital, Arístides, Godoy Cruz y Chacras",
+    "lat": -32.8942,
+    "lng": -68.8475,
+    "disponibilidad": "disponible",
+    "isFeatured": true,
+    "technical": {
+      "measures": "2 Pantallas laterales 4 x 2 m + Trasera 2 x 1.5 m",
+      "resolution": "P6 SMD Outdoor Ultra Brillo",
+      "monthly_impacts": 950000,
+      "format": "Vehículo Audiovisual Itinerante",
+      "route_duration_hours": 6,
+      "operation_days": "Lunes a Sábado"
+    },
+    "waypoints": [
+      { "name": "Av. Arístides Villanueva", "lat": -32.8931, "lng": -68.8585 },
+      { "name": "Plaza Independencia", "lat": -32.8895, "lng": -68.8458 },
+      { "name": "Palmares Mall", "lat": -32.9472, "lng": -68.8685 }
+    ],
+    "routePath": [
+      [-32.8895, -68.8458],
+      [-32.8931, -68.8585],
+      [-32.9150, -68.8520],
+      [-32.9472, -68.8685]
+    ],
+    "imageUrls": [
+      "https://images.unsplash.com/photo-1572945553383-35634f33662c?auto=format&fit=crop&w=1200&q=80"
+    ]
+  }
+]
