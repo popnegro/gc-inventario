@@ -259,11 +259,7 @@ async function startServer() {
           data: { id: generatedId, name, client_name, soportes_ids, notes }
         });
       } else {
-        return res.json({
-          status: 'success',
-          message: 'Media Kit registrado correctamente en memoria (Modo estático).',
-          data: { id: generatedId, name, client_name, soportes_ids, notes, created_at: new Date().toISOString() }
-        });
+        return res.status(503).json({ status: 'error', message: 'DATABASE_URL no está configurado.' });
       }
     } catch (err: any) {
       console.error('Error saving mediakit:', err);
