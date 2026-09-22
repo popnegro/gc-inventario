@@ -319,39 +319,6 @@ async function startServer() {
   });
 
   /**
-   * Endpoint to register a new Media Kit proposal
-   */
-  app.post('/api/mediakits', async (req, res) => {
-    try {
-      const { id, name, client_name, soportes_ids, notes } = req.body;
-
-      if (!name) {
-        return res.status(400).json({ status: 'error', message: 'name parameter is required' });
-      }
-
-      const generatedId = id || 'mk-' + Math.random().toString(36).substr(2, 9);
-
-      if (pool) {
-        await pool.query(
-          `INSERT INTO mediakits (id, name, client_name, soportes_ids, notes, created_at)
-           VALUES ($1, $2, $3, $4, $5, NOW())`,
-          [generatedId, name, client_name || '', soportes_ids || '', notes || '']
-        );
-        return res.json({
-          status: 'success',
-          message: 'Media Kit registrado correctamente en Neon.',
-          data: { id: generatedId, name, client_name, soportes_ids, notes }
-        });
-      } else {
-        return res.status(503).json({ status: 'error', message: 'DATABASE_URL no está configurado.' });
-      }
-    } catch (err: any) {
-      console.error('Error saving mediakit:', err);
-      res.status(500).json({ status: 'error', message: err?.message || 'Error saving media kit' });
-    }
-  });
-
-  /**
    * Gmail Proxy Endpoint:
    * Safely relays Gmail send commands on behalf of authenticated users
    * using the passed Authorization Bearer token from Firebase Auth.
